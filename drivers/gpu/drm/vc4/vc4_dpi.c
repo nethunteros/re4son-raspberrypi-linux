@@ -236,14 +236,12 @@ static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector = NULL;
 	struct vc4_dpi_connector *dpi_connector;
-	int ret = 0;
 
 	dpi_connector = devm_kzalloc(dev->dev, sizeof(*dpi_connector),
 				     GFP_KERNEL);
-	if (!dpi_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!dpi_connector)
+		return ERR_PTR(-ENOMEM);
+
 	connector = &dpi_connector->base;
 
 	dpi_connector->encoder = dpi->encoder;
@@ -260,12 +258,6 @@ static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
 	drm_mode_connector_attach_encoder(connector, dpi->encoder);
 
 	return connector;
-
- fail:
-	if (connector)
-		vc4_dpi_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }
 
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {
@@ -357,9 +349,20 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 	}
 }
 
+static bool vc4_dpi_encoder_mode_fixup(struct drm_encoder *encoder,
+				       const struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted_mode)
+{
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
+
+	return true;
+}
+
 static const struct drm_encoder_helper_funcs vc4_dpi_encoder_helper_funcs = {
 	.disable = vc4_dpi_encoder_disable,
 	.enable = vc4_dpi_encoder_enable,
+	.mode_fixup = vc4_dpi_encoder_mode_fixup,
 };
 
 static const struct of_device_id vc4_dpi_dt_match[] = {
