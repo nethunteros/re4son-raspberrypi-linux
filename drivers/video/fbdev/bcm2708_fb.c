@@ -438,7 +438,7 @@ static void dma_memcpy(struct bcm2708_fb *fb, dma_addr_t dst, dma_addr_t src, in
 
 	cb->info = BCM2708_DMA_BURST(burst_size) | BCM2708_DMA_S_WIDTH |
 		   BCM2708_DMA_S_INC | BCM2708_DMA_D_WIDTH |
-		   BCM2708_DMA_D_INC | BCM2708_DMA_TDMODE;
+		   BCM2708_DMA_D_INC;
 	cb->dst = dst;
 	cb->src = src;
 	cb->length = size;
@@ -507,7 +507,7 @@ static long vc_mem_copy(struct bcm2708_fb *fb, unsigned long arg)
 		return -EFAULT;
 	}
 
-	buf = dma_alloc_coherent(NULL, PAGE_ALIGN(size), &bus_addr,
+	buf = dma_alloc_coherent(fb->fb.device, PAGE_ALIGN(size), &bus_addr,
 				 GFP_ATOMIC);
 	if (!buf) {
 		pr_err("[%s]: failed to dma_alloc_coherent(%d)\n",
@@ -521,7 +521,7 @@ static long vc_mem_copy(struct bcm2708_fb *fb, unsigned long arg)
 		size_t s = min(size, remaining);
 		unsigned char *p = (unsigned char *)ioparam.src + offset;
 		unsigned char *q = (unsigned char *)ioparam.dst + offset;
-		dma_memcpy(fb, (dma_addr_t)buf, INTALIAS_L1L2_NONALLOCATING((dma_addr_t)p), size);
+		dma_memcpy(fb, bus_addr, INTALIAS_L1L2_NONALLOCATING((dma_addr_t)p), size);
 		if (copy_to_user(q, buf, s) != 0) {
 			pr_err("[%s]: failed to copy-to-user\n",
 					__func__);
@@ -531,7 +531,7 @@ static long vc_mem_copy(struct bcm2708_fb *fb, unsigned long arg)
 	}
 out:
 	if (buf)
-		dma_free_coherent(NULL, PAGE_ALIGN(size), buf, bus_addr);
+		dma_free_coherent(fb->fb.device, PAGE_ALIGN(size), buf, bus_addr);
 	return rc;
 }
 
