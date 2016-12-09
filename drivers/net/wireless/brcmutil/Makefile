@@ -1,7 +1,7 @@
 #
-# Makefile fragment for Broadcom 802.11n Networking Device Driver
+# Makefile fragment for Broadcom 802.11n Networking Device Driver Utilities
 #
-# Copyright (c) 2010 Broadcom Corporation
+# Copyright (c) 2011 Broadcom Corporation
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,9 +15,9 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# common flags
-subdir-ccflags-$(CONFIG_BRCMDBG)	+= -DDEBUG
+ccflags-y :=				\
+	-Idrivers/net/wireless/brcm80211/brcmutil \
+	-Idrivers/net/wireless/brcm80211/include
 
-obj-$(CONFIG_BRCMUTIL)	+= brcmutil/
-obj-$(CONFIG_BRCMFMAC)	+= brcmfmac/
-obj-$(CONFIG_BRCMSMAC)	+= brcmsmac/
+obj-$(CONFIG_BRCMUTIL)	+= brcmutil.o
+brcmutil-objs	= utils.o d11.o

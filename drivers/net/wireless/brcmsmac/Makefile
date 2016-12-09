@@ -15,9 +15,34 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# common flags
-subdir-ccflags-$(CONFIG_BRCMDBG)	+= -DDEBUG
+ccflags-y := \
+	-D__CHECK_ENDIAN__ \
+	-Idrivers/net/wireless/brcm80211/brcmsmac \
+	-Idrivers/net/wireless/brcm80211/brcmsmac/phy \
+	-Idrivers/net/wireless/brcm80211/include
 
-obj-$(CONFIG_BRCMUTIL)	+= brcmutil/
-obj-$(CONFIG_BRCMFMAC)	+= brcmfmac/
-obj-$(CONFIG_BRCMSMAC)	+= brcmsmac/
+brcmsmac-y := \
+	mac80211_if.o \
+	ucode_loader.o \
+	ampdu.o \
+	antsel.o \
+	channel.o \
+	main.o \
+	phy_shim.o \
+	pmu.o \
+	rate.o \
+	stf.o \
+	aiutils.o \
+	phy/phy_cmn.o \
+	phy/phy_lcn.o \
+	phy/phy_n.o \
+	phy/phytbl_lcn.o \
+	phy/phytbl_n.o \
+	phy/phy_qmath.o \
+	dma.o \
+	brcms_trace_events.o \
+	debug.o
+
+brcmsmac-$(CONFIG_BCMA_DRIVER_GPIO) += led.o
+
+obj-$(CONFIG_BRCMSMAC)	+= brcmsmac.o
