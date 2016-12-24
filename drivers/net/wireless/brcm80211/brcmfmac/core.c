@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
+/* NEXMON */
+#include <linux/if_arp.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include <brcmu_utils.h>
@@ -34,6 +36,9 @@
 #include "proto.h"
 #include "pcie.h"
 #include "common.h"
+/* NEXMON */
+#include "nexmon_procfs.h"
+#include "nexmon_ioctls.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -669,19 +674,70 @@ static int brcmf_netdev_open(struct net_device *ndev)
 		return -EIO;
 	}
 
+    /* NEXMON: This needs to go for injection to work! */
 	/* Clear, carrier, set when connected or AP mode. */
-	netif_carrier_off(ndev);
+	//netif_carrier_off(ndev);
 	return 0;
 }
+
+static int nexmon_ioctl_handling(struct net_device *net, struct ifreq *ifr, int cmd);
 
 static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_open = brcmf_netdev_open,
 	.ndo_stop = brcmf_netdev_stop,
 	.ndo_get_stats = brcmf_netdev_get_stats,
+    .ndo_do_ioctl = nexmon_ioctl_handling,
 	.ndo_start_xmit = brcmf_netdev_start_xmit,
 	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
 };
+
+static int
+nexmon_ioctl_handling(struct net_device *ndev, struct ifreq *ifr, int cmd)
+{
+    nex_ioctl_t ioc;
+    void *buf = NULL;
+    int buflen = 0;
+    int action_set = 0;
+    struct brcmf_if *ifp = netdev_priv(ndev);
+
+    brcmf_err("NEXMON: %s enter\n", __FUNCTION__);
+    if(copy_from_user(&ioc, ifr->ifr_data, sizeof(nex_ioctl_t))) {
+        brcmf_err("NEXMON: %s: error on copy ifr_data\n", __FUNCTION__);
+        return -1;
+    }
+
+    buflen = ioc.len;
+
+    if(ioc.buf) {
+        if(!(buf = kmalloc(buflen + 1, GFP_KERNEL))) {
+            brcmf_err("NEXMON: %s: error on kmalloc\n", __FUNCTION__);
+            return -1;
+        }
+        if(copy_from_user(buf, ioc.buf, buflen)) {
+            brcmf_err("NEXMON: %s: error on copy buf\n", __FUNCTION__);
+            return -1;
+        }
+    }
+    
+    action_set = ioc.set;
+    /* set something */
+    if(action_set) {
+        brcmf_fil_cmd_data_set(ifp, ioc.cmd, buf, buflen);
+    }
+    /* get something */ 
+    else {
+        brcmf_fil_cmd_data_get(ifp, ioc.cmd, buf, buflen);
+    }
+
+    if(copy_to_user(ioc.buf, buf, buflen)) {
+        brcmf_err("NEXMON: %s: error on copy TO user\n", __FUNCTION__);
+    }
+
+    kfree(buf);
+
+    return 0;
+}
 
 int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 {
@@ -696,11 +752,16 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	/* set appropriate operations */
 	ndev->netdev_ops = &brcmf_netdev_ops_pri;
 
-	ndev->needed_headroom += drvr->hdrlen;
+    ndev->needed_headroom += drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
 	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
 			      drvr->hdrlen;
+
+    /* NEXMON */
+    ndev->type = ARPHRD_IEEE80211_RADIOTAP;
+    ndev->ieee80211_ptr->iftype = NL80211_IFTYPE_MONITOR;
+    ndev->ieee80211_ptr->wiphy->interface_modes = BIT(NL80211_IFTYPE_MONITOR);
 
 	/* set the mac address */
 	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
@@ -1234,6 +1295,10 @@ static int __init brcmfmac_module_init(void)
 #ifdef CONFIG_BRCMFMAC_SDIO
 	brcmf_sdio_init();
 #endif
+    
+    /* NEXMON procfs */
+    proc_create("nexmon_consoledump", 0, NULL, &rom_proc_dump_fops);
+
 	if (!schedule_work(&brcmf_driver_work))
 		return -EBUSY;
 
@@ -1243,6 +1308,9 @@ static int __init brcmfmac_module_init(void)
 static void __exit brcmfmac_module_exit(void)
 {
 	cancel_work_sync(&brcmf_driver_work);
+
+    /* NEXMON procfs */
+    remove_proc_entry("nexmon_consoledump", NULL);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
 	brcmf_sdio_exit();
