@@ -1207,6 +1207,15 @@ static void dwc2_hsotg_process_control(struct dwc2_hsotg *hsotg,
 		ctrl->bRequestType, ctrl->bRequest, ctrl->wValue,
 		ctrl->wIndex, ctrl->wLength);
 
+        /* Prints setup requests */
+        printk("USB DWC2 REQ %02x %02x %04x %04x %04x\n",
+                ctrl->bRequestType,
+                ctrl->bRequest,
+                ctrl->wValue,
+                ctrl->wIndex,
+                ctrl->wLength);
+
+
 	if (ctrl->wLength == 0) {
 		ep0->dir_in = 1;
 		hsotg->ep0_state = DWC2_EP0_STATUS_IN;
