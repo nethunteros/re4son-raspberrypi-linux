@@ -610,6 +610,23 @@ static bool brcmf_is_ibssmode(struct brcmf_cfg80211_vif *vif)
 	return vif->wdev.iftype == NL80211_IFTYPE_ADHOC;
 }
 
+static s32
+brcmf_cfg80211_nexmon_set_channel(struct wiphy *wiphy,struct cfg80211_chan_def *chandef) {
+    struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+    struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+    s32 err = 0;
+    u16 chanspec;
+
+    //brcmf_err("DEBUG NexMon: brcmf_cfg80211_nexmon_set_channel() called!\n");
+    chanspec = chandef_to_chanspec(&cfg->d11inf, chandef);
+    err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
+    if (err < 0) {
+        brcmf_err("Set Channel failed: chspec=%d, %d\n",
+              chanspec, err);
+    }
+    return 0;
+}
+
 static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 						     const char *name,
 						     unsigned char name_assign_type,
@@ -621,6 +638,7 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	int err;
 
 	brcmf_dbg(TRACE, "enter: %s type %d\n", name, type);
+    brcmf_err("brcmf_cfg80211_add_iface() called!\n");
 	err = brcmf_vif_add_validate(wiphy_to_cfg(wiphy), type);
 	if (err) {
 		brcmf_err("iface validation failed: err=%d\n", err);
@@ -811,10 +829,11 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 		 * it is. If the user tries this then unloading of driver might
 		 * fail/lock.
 		 */
-		if (cfg->p2p.p2pdev_dynamically)
+		if (cfg->p2p.p2pdev_dynamically) {
 			return -EOPNOTSUPP;
-		else
+        } else {
 			return 0;
+        }
 	}
 	err = brcmf_vif_change_validate(wiphy_to_cfg(wiphy), vif, type);
 	if (err) {
@@ -823,10 +842,13 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 	}
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
+        /* NEXMON */
+        infra = 1;
+        break;
 	case NL80211_IFTYPE_WDS:
 		brcmf_err("type (%d) : currently we do not support this type\n",
 			  type);
-		return -EOPNOTSUPP;
+        return -EOPNOTSUPP;
 	case NL80211_IFTYPE_ADHOC:
 		infra = 0;
 		break;
@@ -4694,6 +4716,7 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
 	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
 	.tdls_oper = brcmf_cfg80211_tdls_oper,
+    .set_monitor_channel = brcmf_cfg80211_nexmon_set_channel,
 };
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
@@ -6038,6 +6061,10 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 
 	brcmf_configure_arp_offload(ifp, true);
 
+    /* NEXMON WLC_SET_MONITOR && WLC_SET_PROMISC */
+    //brcmf_fil_cmd_int_set(ifp, 108, 1);
+    //brcmf_fil_cmd_int_set(ifp, 10, 1);
+
 	cfg->dongle_up = true;
 default_conf_out:
 
@@ -6245,7 +6272,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	cfg->pub = drvr;
 	init_vif_event(&cfg->vif_event);
 	INIT_LIST_HEAD(&cfg->vif_list);
-
+    
 	vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_STATION, false);
 	if (IS_ERR(vif))
 		goto wiphy_out;
