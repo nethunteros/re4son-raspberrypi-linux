@@ -9,7 +9,7 @@ endif
 
 obj-$(CONFIG_FB_HATS)             += 4dpi.o
 
-ifeq (,$(findstring v7_Re4son,$(CONFIG_LOCALVERSION)))
+ifeq ($(CONFIG_LOCALVERSION),"-v7_Re4son-Kali-Pi-TFT")
         4dpi-objs                       := 4d-hats.o compress-v7.o
 else
         4dpi-objs                       := 4d-hats.o compress-v6.o
