@@ -208,5 +208,11 @@ config SYSCON_REBOOT_MODE
 	  register, then the bootloader can read it to take different
 	  action according to the mode.
 
+config RPI_POWER_SWITCH
+	tristate "Raspberry Pi GPIO power switch"
+	help
+	  Use a GPIO as a pseudo power switch.
+
+
 endif
 
