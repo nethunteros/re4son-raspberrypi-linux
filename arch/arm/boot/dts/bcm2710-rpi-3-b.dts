@@ -1,9 +1,5 @@
 /dts-v1/;
 
-#ifdef RPI364
-/memreserve/ 0x00000000 0x00001000;
-#endif
-
 #include "bcm2710.dtsi"
 #include "bcm283x-rpi-smsc9514.dtsi"
 
@@ -132,7 +128,7 @@
 		reg = <0>;	/* CE0 */
 		#address-cells = <1>;
 		#size-cells = <0>;
-		spi-max-frequency = <500000>;
+		spi-max-frequency = <125000000>;
 	};
 
 	spidev1: spidev@1{
@@ -140,7 +136,7 @@
 		reg = <1>;	/* CE1 */
 		#address-cells = <1>;
 		#size-cells = <0>;
-		spi-max-frequency = <500000>;
+		spi-max-frequency = <125000000>;
 	};
 };
 

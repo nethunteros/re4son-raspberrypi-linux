@@ -7,7 +7,10 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	ads1115.dtbo \
 	ads7846.dtbo \
 	akkordion-iqdacplus.dtbo \
+	allo-boss-dac-pcm512x-audio.dtbo \
+	allo-digione.dtbo \
 	allo-piano-dac-pcm512x-audio.dtbo \
+	allo-piano-dac-plus-pcm512x-audio.dtbo \
 	at86rf233.dtbo \
 	audioinjector-addons.dtbo \
 	audioinjector-wm8731-audio.dtbo \
@@ -23,8 +26,11 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	enc28j60.dtbo \
 	enc28j60-spi2.dtbo \
 	fe-pi-audio.dtbo \
+	goodix.dtbo \
+	googlevoicehat-soundcard.dtbo \
 	gpio-ir.dtbo \
 	gpio-poweroff.dtbo \
+	gpio-shutdown.dtbo \
 	hifiberry-amp.dtbo \
 	hifiberry-dac.dtbo \
 	hifiberry-dacplus.dtbo \
@@ -37,6 +43,7 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	i2c-mux.dtbo \
 	i2c-pwm-pca9685a.dtbo \
 	i2c-rtc.dtbo \
+	i2c-rtc-gpio.dtbo \
 	i2c-sensor.dtbo \
 	i2c0-bcm2708.dtbo \
 	i2c1-bcm2708.dtbo \
@@ -53,8 +60,11 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	mcp2515-can1.dtbo \
 	mcp3008.dtbo \
 	midi-uart0.dtbo \
+	midi-uart1.dtbo \
 	mmc.dtbo \
+	mpu6050.dtbo \
 	mz61581.dtbo \
+	papirus.dtbo \
 	pi3-act-led.dtbo \
 	pi3-disable-bt.dtbo \
 	pi3-disable-wifi.dtbo \
@@ -71,6 +81,7 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	pwm-2chan.dtbo \
 	qca7000.dtbo \
 	raspidac3.dtbo \
+	rotary-encoder.dtbo \
 	rpi-backlight.dtbo \
 	rpi-cirrus-wm5102.dtbo \
 	rpi-dac.dtbo \
@@ -78,6 +89,7 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	rpi-ft5406.dtbo \
 	rpi-proto.dtbo \
 	rpi-sense.dtbo \
+	rpi-tv.dtbo \
 	rra-digidac1-wm8741-audio.dtbo \
 	sc16is750-i2c.dtbo \
 	sc16is752-spi1.dtbo \

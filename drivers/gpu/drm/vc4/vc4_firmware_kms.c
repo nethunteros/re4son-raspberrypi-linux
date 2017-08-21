@@ -18,6 +18,7 @@
 #include "drm_atomic_helper.h"
 #include "drm_plane_helper.h"
 #include "drm_crtc_helper.h"
+#include "drm_fourcc.h"
 #include "linux/clk.h"
 #include "linux/debugfs.h"
 #include "drm_fb_cma_helper.h"
@@ -37,9 +38,12 @@ struct vc4_crtc {
 	struct drm_crtc base;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	struct drm_plane *primary;
+	struct drm_plane *cursor;
 	void __iomem *regs;
 
 	struct drm_pending_vblank_event *event;
+	u32 overscan[4];
 };
 
 static inline struct vc4_crtc *to_vc4_crtc(struct drm_crtc *crtc)
@@ -124,8 +128,6 @@ static void vc4_primary_plane_atomic_update(struct drm_plane *plane,
 	u32 bpp = 32;
 	int ret;
 
-	vc4_plane_set_primary_blank(plane, false);
-
 	fbinfo->xres = state->crtc_w;
 	fbinfo->yres = state->crtc_h;
 	fbinfo->xres_virtual = state->crtc_w;
@@ -135,6 +137,10 @@ static void vc4_primary_plane_atomic_update(struct drm_plane *plane,
 	fbinfo->yoffset = state->crtc_y;
 	fbinfo->base = bo->paddr + fb->offsets[0];
 	fbinfo->pitch = fb->pitches[0];
+
+	if (fb->modifier[0] == DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED)
+		fbinfo->bpp |= BIT(31);
+
 	/* A bug in the firmware makes it so that if the fb->base is
 	 * set to nonzero, the configured pitch gets overwritten with
 	 * the previous pitch.  So, to get the configured pitch
@@ -169,6 +175,12 @@ static void vc4_primary_plane_atomic_update(struct drm_plane *plane,
 				       vc4_plane->fbinfo_bus_addr);
 	WARN_ON_ONCE(fbinfo->pitch != fb->pitches[0]);
 	WARN_ON_ONCE(fbinfo->base != bo->paddr + fb->offsets[0]);
+
+	/* If the CRTC is on (or going to be on) and we're enabled,
+	 * then unblank.  Otherwise, stay blank until CRTC enable.
+	*/
+	if (state->crtc->state->active)
+		vc4_plane_set_primary_blank(plane, false);
 }
 
 static void vc4_primary_plane_atomic_disable(struct drm_plane *plane,
@@ -181,11 +193,17 @@ static void vc4_cursor_plane_atomic_update(struct drm_plane *plane,
 					   struct drm_plane_state *old_state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(plane->crtc);
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	int ret;
-	u32 packet_state[] = { true, state->crtc_x, state->crtc_y, 0 };
+	u32 packet_state[] = {
+		state->crtc->state->active,
+		state->crtc_x,
+		state->crtc_y,
+		0
+	};
 	u32 packet_info[] = { state->crtc_w, state->crtc_h,
 			      0, /* unused */
 			      bo->paddr + fb->offsets[0],
@@ -201,6 +219,12 @@ static void vc4_cursor_plane_atomic_update(struct drm_plane *plane,
 			 state->crtc_y,
 			 bo->paddr + fb->offsets[0],
 			 fb->pitches[0]);
+
+	/* add on the top/left offsets when overscan is active */
+	if (vc4_crtc) {
+		packet_state[1] += vc4_crtc->overscan[0];
+		packet_state[2] += vc4_crtc->overscan[1];
+	}
 
 	ret = rpi_firmware_property(vc4->firmware,
 				    RPI_FIRMWARE_SET_CURSOR_STATE,
@@ -323,10 +347,30 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 static void vc4_crtc_disable(struct drm_crtc *crtc)
 {
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+
+	/* Always turn the planes off on CRTC disable. In DRM, planes
+	 * are enabled/disabled through the update/disable hooks
+	 * above, and the CRTC enable/disable independently controls
+	 * whether anything scans out at all, but the firmware doesn't
+	 * give us a CRTC-level control for that.
+	 */
+	vc4_cursor_plane_atomic_disable(vc4_crtc->cursor,
+					vc4_crtc->cursor->state);
+	vc4_plane_set_primary_blank(vc4_crtc->primary, true);
 }
 
 static void vc4_crtc_enable(struct drm_crtc *crtc)
 {
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+
+	/* Unblank the planes (if they're supposed to be displayed). */
+	if (vc4_crtc->primary->state->fb)
+		vc4_plane_set_primary_blank(vc4_crtc->primary, false);
+	if (vc4_crtc->cursor->state->fb) {
+		vc4_cursor_plane_atomic_update(vc4_crtc->cursor,
+					       vc4_crtc->cursor->state);
+	}
 }
 
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
@@ -622,6 +666,9 @@ static int vc4_fkms_bind(struct device *dev, struct device *master, void *data)
 	cursor_plane->crtc = crtc;
 	vc4->crtc[drm_crtc_index(crtc)] = vc4_crtc;
 
+	vc4_crtc->primary = primary_plane;
+	vc4_crtc->cursor = cursor_plane;
+
 	vc4_encoder = devm_kzalloc(dev, sizeof(*vc4_encoder), GFP_KERNEL);
 	if (!vc4_encoder)
 		return -ENOMEM;
@@ -644,6 +691,15 @@ static int vc4_fkms_bind(struct device *dev, struct device *master, void *data)
 			       vc4_crtc);
 	if (ret)
 		goto err_destroy_connector;
+
+	ret = rpi_firmware_property(vc4->firmware,
+				    RPI_FIRMWARE_FRAMEBUFFER_GET_OVERSCAN,
+				    &vc4_crtc->overscan,
+				    sizeof(vc4_crtc->overscan));
+	if (ret) {
+		DRM_ERROR("Failed to get overscan state: 0x%08x\n", vc4_crtc->overscan[0]);
+		memset(&vc4_crtc->overscan, 0, sizeof(vc4_crtc->overscan));
+	}
 
 	platform_set_drvdata(pdev, vc4_crtc);
 
