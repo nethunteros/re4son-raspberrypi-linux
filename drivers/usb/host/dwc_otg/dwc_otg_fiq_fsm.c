@@ -191,6 +191,32 @@ static void notrace fiq_fsm_setup_csplit(struct fiq_state *st, int n)
 	mb();
 }
 
+/**
+ * fiq_fsm_restart_np_pending() - Restart a single non-periodic contended transfer
+ * @st: Pointer to the channel's state
+ * @num_channels: Total number of host channels
+ * @orig_channel: Channel index of completed transfer
+ *
+ * In the case where an IN and OUT transfer are simultaneously scheduled to the
+ * same device/EP, inadequate hub implementations will misbehave. Once the first
+ * transfer is complete, a pending non-periodic split can then be issued.
+ */
+static void notrace fiq_fsm_restart_np_pending(struct fiq_state *st, int num_channels, int orig_channel)
+{
+	int i;
+	int dev_addr = st->channel[orig_channel].hcchar_copy.b.devaddr;
+	int ep_num = st->channel[orig_channel].hcchar_copy.b.epnum;
+	for (i = 0; i < num_channels; i++) {
+		if (st->channel[i].fsm == FIQ_NP_SSPLIT_PENDING &&
+			st->channel[i].hcchar_copy.b.devaddr == dev_addr &&
+			st->channel[i].hcchar_copy.b.epnum == ep_num) {
+			st->channel[i].fsm = FIQ_NP_SSPLIT_STARTED;
+			fiq_fsm_restart_channel(st, i, 0);
+			break;
+		}
+	}
+}
+
 static inline int notrace fiq_get_xfer_len(struct fiq_state *st, int n)
 {
 	/* The xfersize register is a bit wonky. For IN transfers, it decrements by the packet size. */
@@ -491,7 +517,10 @@ static void notrace noinline fiq_fsm_start_next_periodic(struct fiq_state *st, i
 		if (st->channel[n].fsm == FIQ_PER_ISO_OUT_PENDING) {
 			if (!fiq_fsm_tt_in_use(st, num_channels, n)) {
 				fiq_print(FIQDBG_INT, st, "NEXTISO ");
-				st->channel[n].fsm = FIQ_PER_ISO_OUT_ACTIVE;
+				if (st->channel[n].nrpackets == 1)
+					st->channel[n].fsm = FIQ_PER_ISO_OUT_LAST;
+				else
+					st->channel[n].fsm = FIQ_PER_ISO_OUT_ACTIVE;
 				fiq_fsm_restart_channel(st, n, 0);
 				break;
 			}
@@ -867,6 +896,9 @@ static int notrace noinline fiq_fsm_do_hcintr(struct fiq_state *state, int num_c
 				st->fsm = FIQ_NP_SPLIT_HS_ABORTED;
 			}
 		}
+		if (st->fsm != FIQ_NP_IN_CSPLIT_RETRY) {
+			fiq_fsm_restart_np_pending(state, num_channels, n);
+		}
 		break;
 
 	case FIQ_NP_OUT_CSPLIT_RETRY:
@@ -915,6 +947,9 @@ static int notrace noinline fiq_fsm_do_hcintr(struct fiq_state *state, int num_c
 				// Something unexpected happened. AHBerror or babble perhaps. Let the IRQ deal with it.
 				st->fsm = FIQ_NP_SPLIT_HS_ABORTED;
 			}
+		}
+		if (st->fsm != FIQ_NP_OUT_CSPLIT_RETRY) {
+			fiq_fsm_restart_np_pending(state, num_channels, n);
 		}
 		break;
 

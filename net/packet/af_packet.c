@@ -2652,19 +2652,19 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		dev = dev_get_by_index(sock_net(&po->sk), saddr->sll_ifindex);
 	}
 
-	sockc.tsflags = po->sk.sk_tsflags;
-	if (msg->msg_controllen) {
-		err = sock_cmsg_send(&po->sk, msg, &sockc);
-		if (unlikely(err))
-			goto out;
-	}
-
 	err = -ENXIO;
 	if (unlikely(dev == NULL))
 		goto out;
 	err = -ENETDOWN;
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_put;
+
+	sockc.tsflags = po->sk.sk_tsflags;
+	if (msg->msg_controllen) {
+		err = sock_cmsg_send(&po->sk, msg, &sockc);
+		if (unlikely(err))
+			goto out_put;
+	}
 
 	if (po->sk.sk_socket->type == SOCK_RAW)
 		reserve = dev->hard_header_len;
@@ -3702,6 +3702,8 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 			return -EBUSY;
 		if (copy_from_user(&val, optval, sizeof(val)))
 			return -EFAULT;
+		if (val > INT_MAX)
+			return -EINVAL;
 		po->tp_reserve = val;
 		return 0;
 	}
@@ -4246,6 +4248,8 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 
 		rb->frames_per_block = req->tp_block_size / req->tp_frame_size;
 		if (unlikely(rb->frames_per_block == 0))
+			goto out;
+		if (unlikely(req->tp_block_size > UINT_MAX / req->tp_block_nr))
 			goto out;
 		if (unlikely((rb->frames_per_block * req->tp_block_nr) !=
 					req->tp_frame_nr))
