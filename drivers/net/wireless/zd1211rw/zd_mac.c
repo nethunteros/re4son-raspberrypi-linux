@@ -1406,7 +1406,6 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
-/*	ieee80211_hw_set(hw, SIGNAL_UNSPEC); */
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 
 	hw->wiphy->interface_modes =

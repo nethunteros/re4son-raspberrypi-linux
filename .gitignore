@@ -112,3 +112,9 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+#
+# Include standard entire 4D-Hat driver directory
+#
+!drivers/video/4d-hats/compress-v6.o
+!drivers/video/4d-hats/compress-v7.o
