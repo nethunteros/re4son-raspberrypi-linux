@@ -24,7 +24,7 @@
 #include <linux/workqueue.h>
 
 
-#ifdef RPI2
+#ifdef CONFIG_CPU_V7
 #define PERI_BASE        0x3F000000
 #else
 #define PERI_BASE        0x20000000
