@@ -36,6 +36,8 @@ config VIDEOMODE_HELPERS
 config HDMI
 	bool
 
+source "drivers/video/4d-hats/Kconfig"
+
 if VT
 	source "drivers/video/console/Kconfig"
 endif
