@@ -4,9 +4,10 @@
  * Simulated power switch / button, using the GPIO banks.
  *
  * - Written by Sean Cross for Adafruit Industries (www.adafruit.com)
+ * - Updated by Re4son
  */
 
-#define RPI_POWER_SWITCH_VERSION "1.7"
+#define RPI_POWER_SWITCH_VERSION "1.8"
 #define POWER_SWITCH_CLASS_NAME "rpi-power-switch"
 
 #include <linux/module.h>
