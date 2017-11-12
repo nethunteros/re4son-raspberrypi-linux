@@ -3492,11 +3492,11 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	cgrp->subtree_control &= ~disable;
 
 	ret = cgroup_apply_control(cgrp);
-
 	cgroup_finalize_control(cgrp, ret);
+	if (ret)
+		goto out_unlock;
 
 	kernfs_activate(cgrp->kn);
-	ret = 0;
 out_unlock:
 	cgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
@@ -5637,7 +5637,9 @@ int __init cgroup_init_early(void)
 	return 0;
 }
 
-static u16 cgroup_disable_mask __initdata = 1<<0;
+static u16 cgroup_disable_mask __initdata;
+static bool cgroup_enable_memory;
+static int __init cgroup_disable(char *str);
 
 /**
  * cgroup_init - cgroup initialization
@@ -5675,6 +5677,9 @@ int __init cgroup_init(void)
 	BUG_ON(cgroup_setup_root(&cgrp_dfl_root, 0));
 
 	mutex_unlock(&cgroup_mutex);
+
+	if (!cgroup_enable_memory)
+		cgroup_disable("memory");
 
 	for_each_subsys(ss, ssid) {
 		if (ss->early_init) {
@@ -5723,6 +5728,10 @@ int __init cgroup_init(void)
 
 		if (ss->bind)
 			ss->bind(init_css_set.subsys[ssid]);
+
+		mutex_lock(&cgroup_mutex);
+		css_populate_dir(init_css_set.subsys[ssid]);
+		mutex_unlock(&cgroup_mutex);
 	}
 
 	/* init_css_set.subsys[] has been updated, re-hash */
@@ -6147,6 +6156,13 @@ static int __init cgroup_disable(char *str)
 }
 __setup("cgroup_disable=", cgroup_disable);
 
+static int __init cgroup_memory(char *str)
+{
+	kstrtobool(str, &cgroup_enable_memory);
+	return 1;
+}
+__setup("cgroup_memory=", cgroup_memory);
+
 static int __init cgroup_no_v1(char *str)
 {
 	struct cgroup_subsys *ss;
@@ -6173,28 +6189,6 @@ static int __init cgroup_no_v1(char *str)
 	return 1;
 }
 __setup("cgroup_no_v1=", cgroup_no_v1);
-
-static int __init cgroup_enable(char *str)
-{
-	struct cgroup_subsys *ss;
-	char *token;
-	int i;
-
-	while ((token = strsep(&str, ",")) != NULL) {
-		if (!*token)
-			continue;
-
-		for_each_subsys(ss, i) {
-			if (strcmp(token, ss->name) &&
-			    strcmp(token, ss->legacy_name))
-				continue;
-
-			cgroup_disable_mask &= ~(1 << i);
-		}
-	}
-	return 1;
-}
-__setup("cgroup_enable=", cgroup_enable);
 
 /**
  * css_tryget_online_from_dir - get corresponding css from a cgroup dentry

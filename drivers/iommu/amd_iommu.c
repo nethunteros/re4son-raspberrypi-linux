@@ -3120,6 +3120,7 @@ static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 	mutex_unlock(&domain->api_lock);
 
 	domain_flush_tlb_pde(domain);
+	domain_flush_complete(domain);
 
 	return unmap_size;
 }
@@ -4294,6 +4295,7 @@ static int amd_ir_set_vcpu_affinity(struct irq_data *data, void *vcpu_info)
 		/* Setting */
 		irte->hi.fields.ga_root_ptr = (pi_data->base >> 12);
 		irte->hi.fields.vector = vcpu_pi_info->vector;
+		irte->lo.fields_vapic.ga_log_intr = 1;
 		irte->lo.fields_vapic.guest_mode = 1;
 		irte->lo.fields_vapic.ga_tag = pi_data->ga_tag;
 
