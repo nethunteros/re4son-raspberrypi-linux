@@ -147,7 +147,6 @@ static struct ieee80211_rate __wl_rates[] = {
 	.band			= NL80211_BAND_2GHZ,		\
 	.center_freq		= (_freq),			\
 	.hw_value		= (_channel),			\
-	.flags			= IEEE80211_CHAN_DISABLED,	\
 	.max_antenna_gain	= 0,				\
 	.max_power		= 30,				\
 }
@@ -156,7 +155,6 @@ static struct ieee80211_rate __wl_rates[] = {
 	.band			= NL80211_BAND_5GHZ,		\
 	.center_freq		= 5000 + (5 * (_channel)),	\
 	.hw_value		= (_channel),			\
-	.flags			= IEEE80211_CHAN_DISABLED,	\
 	.max_antenna_gain	= 0,				\
 	.max_power		= 30,				\
 }
@@ -3161,6 +3159,28 @@ static void brcmf_init_escan(struct brcmf_cfg80211_info *cfg)
 		  brcmf_cfg80211_escan_timeout_worker);
 }
 
+static struct brcmf_pno_net_info_le *
+brcmf_get_netinfo_array(struct brcmf_pno_scanresults_le *pfn_v1)
+{
+	struct brcmf_pno_scanresults_v2_le *pfn_v2;
+	struct brcmf_pno_net_info_le *netinfo;
+
+	switch (pfn_v1->version) {
+	default:
+		WARN_ON(1);
+		/* fall-thru */
+	case cpu_to_le32(1):
+		netinfo = (struct brcmf_pno_net_info_le *)(pfn_v1 + 1);
+		break;
+	case cpu_to_le32(2):
+		pfn_v2 = (struct brcmf_pno_scanresults_v2_le *)pfn_v1;
+		netinfo = (struct brcmf_pno_net_info_le *)(pfn_v2 + 1);
+		break;
+	}
+
+	return netinfo;
+}
+
 /* PFN result doesn't have all the info which are required by the supplicant
  * (For e.g IEs) Do a target Escan so that sched scan results are reported
  * via wl_inform_single_bss in the required format. Escan does require the
@@ -3217,8 +3237,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 		}
 
 		request->wiphy = wiphy;
-		data += sizeof(struct brcmf_pno_scanresults_le);
-		netinfo_start = (struct brcmf_pno_net_info_le *)data;
+		netinfo_start = brcmf_get_netinfo_array(pfn_result);
 
 		for (i = 0; i < result_count; i++) {
 			netinfo = &netinfo_start[i];
@@ -6536,8 +6555,7 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 			wiphy->bands[NL80211_BAND_5GHZ] = band;
 		}
 	}
-	err = brcmf_setup_wiphybands(wiphy);
-	return err;
+	return 0;
 }
 
 static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
@@ -6912,6 +6930,12 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	if (err < 0) {
 		brcmf_err("Could not register wiphy device (%d)\n", err);
 		goto priv_out;
+	}
+
+	err = brcmf_setup_wiphybands(wiphy);
+	if (err) {
+		brcmf_err("Setting wiphy bands failed (%d)\n", err);
+		goto wiphy_unreg_out;
 	}
 
 	/* If cfg80211 didn't disable 40MHz HT CAP in wiphy_register(),

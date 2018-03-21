@@ -25,21 +25,21 @@
  * the PLLH_PIX clock for the PHY.
  */
 
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
-#include "linux/clk.h"
-#include "linux/component.h"
-#include "linux/i2c.h"
-#include "linux/of_address.h"
-#include "linux/of_gpio.h"
-#include "linux/of_platform.h"
-#include "linux/pm_runtime.h"
-#include "linux/rational.h"
-#include "sound/dmaengine_pcm.h"
-#include "sound/pcm_drm_eld.h"
-#include "sound/pcm_params.h"
-#include "sound/soc.h"
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/i2c.h>
+#include <linux/of_address.h>
+#include <linux/of_gpio.h>
+#include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
+#include <linux/rational.h>
+#include <sound/dmaengine_pcm.h>
+#include <sound/pcm_drm_eld.h>
+#include <sound/pcm_params.h>
+#include <sound/soc.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -243,6 +243,7 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	drm_edid_to_eld(connector, edid);
+	kfree(edid);
 
 	return ret;
 }
@@ -1080,7 +1081,7 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 	 * snd_soc_card_get_drvdata() if needed.
 	 */
 	snd_soc_card_set_drvdata(card, hdmi);
-	ret = devm_snd_soc_register_card(dev, card);
+	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(dev, "Could not register sound card: %d\n", ret);
 		goto unregister_codec;
@@ -1097,13 +1098,16 @@ unregister_codec:
 static void vc4_hdmi_audio_cleanup(struct vc4_hdmi *hdmi)
 {
 	struct device *dev = &hdmi->pdev->dev;
+	struct snd_soc_card *card = &hdmi->audio.card;
 
 	/*
 	 * If drvdata is not set this means the audio card was not
 	 * registered, just skip codec unregistration in this case.
 	 */
-	if (dev_get_drvdata(dev))
+	if (dev_get_drvdata(dev)) {
+		snd_soc_unregister_card(card);
 		snd_soc_unregister_codec(dev);
+	}
 }
 
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
