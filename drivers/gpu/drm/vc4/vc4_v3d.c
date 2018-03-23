@@ -16,8 +16,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "linux/component.h"
-#include "linux/pm_runtime.h"
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -320,6 +321,9 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 		return ret;
 
 	vc4_v3d_init_hw(vc4->dev);
+
+	/* We disabled the IRQ as part of vc4_irq_uninstall in suspend. */
+	enable_irq(vc4->dev->irq);
 	vc4_irq_postinstall(vc4->dev);
 
 	return 0;
