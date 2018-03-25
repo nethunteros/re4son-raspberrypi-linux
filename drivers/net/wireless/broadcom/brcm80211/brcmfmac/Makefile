@@ -16,10 +16,11 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y += \
-	-Idrivers/net/wireless/broadcom/brcm80211/brcmfmac	\
-	-Idrivers/net/wireless/broadcom/brcm80211/include
+	-Idrivers/net/wireless/brcm80211/brcmfmac	\
+	-I$(NEXMON_ROOT)/patches/bcm43438/7_45_41_26/nexmon/brcmfmac_kernel49/include
 
-ccflags-y += -D__CHECK_ENDIAN__
+
+ccflags-$(CONFIG_BRCMDBG)	+= -DDEBUG
 
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += \
@@ -35,7 +36,8 @@ brcmfmac-objs += \
 		firmware.o \
 		feature.o \
 		btcoex.o \
-		vendor.o
+		vendor.o \
+		pno.o
 brcmfmac-$(CONFIG_BRCMFMAC_PROTO_BCDC) += \
 		bcdc.o
 brcmfmac-$(CONFIG_BRCMFMAC_PROTO_MSGBUF) += \

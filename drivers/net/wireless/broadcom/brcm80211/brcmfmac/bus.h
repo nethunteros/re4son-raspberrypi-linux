@@ -22,9 +22,11 @@
 /* IDs of the 6 default common rings of msgbuf protocol */
 #define BRCMF_H2D_MSGRING_CONTROL_SUBMIT	0
 #define BRCMF_H2D_MSGRING_RXPOST_SUBMIT		1
+#define BRCMF_H2D_MSGRING_FLOWRING_IDSTART	2
 #define BRCMF_D2H_MSGRING_CONTROL_COMPLETE	2
 #define BRCMF_D2H_MSGRING_TX_COMPLETE		3
 #define BRCMF_D2H_MSGRING_RX_COMPLETE		4
+
 
 #define BRCMF_NROF_H2D_COMMON_MSGRINGS		2
 #define BRCMF_NROF_D2H_COMMON_MSGRINGS		3
@@ -69,7 +71,6 @@ struct brcmf_bus_dcmd {
  * @wowl_config: specify if dongle is configured for wowl when going to suspend
  * @get_ramsize: obtain size of device memory.
  * @get_memdump: obtain device memory dump in provided buffer.
- * @get_fwname: obtain firmware name.
  *
  * This structure provides an abstract interface towards the
  * bus specific driver. For control messages to common driver
@@ -86,8 +87,6 @@ struct brcmf_bus_ops {
 	void (*wowl_config)(struct device *dev, bool enabled);
 	size_t (*get_ramsize)(struct device *dev);
 	int (*get_memdump)(struct device *dev, void *data, size_t len);
-	int (*get_fwname)(struct device *dev, uint chip, uint chiprev,
-			  unsigned char *fw_name);
 };
 
 
@@ -98,14 +97,18 @@ struct brcmf_bus_ops {
  * @flowrings: commonrings which are dynamically created and destroyed for data.
  * @rx_dataoffset: if set then all rx data has this this offset.
  * @max_rxbufpost: maximum number of buffers to post for rx.
- * @nrof_flowrings: number of flowrings.
+ * @max_flowrings: maximum number of tx flow rings supported.
+ * @max_submissionrings: maximum number of submission rings(h2d) supported.
+ * @max_completionrings: maximum number of completion rings(d2h) supported.
  */
 struct brcmf_bus_msgbuf {
 	struct brcmf_commonring *commonrings[BRCMF_NROF_COMMON_MSGRINGS];
 	struct brcmf_commonring **flowrings;
 	u32 rx_dataoffset;
 	u32 max_rxbufpost;
-	u32 nrof_flowrings;
+	u16 max_flowrings;
+	u16 max_submissionrings;
+	u16 max_completionrings;
 };
 
 
@@ -209,16 +212,6 @@ int brcmf_bus_get_memdump(struct brcmf_bus *bus, void *data, size_t len)
 		return -EOPNOTSUPP;
 
 	return bus->ops->get_memdump(bus->dev, data, len);
-}
-
-static inline
-int brcmf_bus_get_fwname(struct brcmf_bus *bus, uint chip, uint chiprev,
-			 unsigned char *fw_name)
-{
-	if (!bus->ops->get_fwname)
-		return -EOPNOTSUPP;
-
-	return bus->ops->get_fwname(bus->dev, chip, chiprev, fw_name);
 }
 
 /*
