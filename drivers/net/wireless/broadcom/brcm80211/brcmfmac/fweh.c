@@ -69,7 +69,7 @@ static struct brcmf_fweh_event_name fweh_event_names[] = {
  *
  * @code: code to lookup.
  */
-const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
+static const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(fweh_event_names); i++) {
@@ -79,7 +79,7 @@ const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 	return "unknown";
 }
 #else
-const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
+static const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 {
 	return "nodebug";
 }
@@ -257,11 +257,6 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 		brcmf_dbg_hex_dump(BRCMF_EVENT_ON(), event->data,
 				   min_t(u32, emsg.datalen, 64),
 				   "event payload, len=%d\n", emsg.datalen);
-		if (emsg.datalen > event->datalen) {
-			brcmf_err("event invalid length header=%d, msg=%d\n",
-				  event->datalen, emsg.datalen);
-			goto event_free;
-		}
 
 		/* special handling of interface event */
 		if (event->code == BRCMF_E_IF) {
@@ -429,7 +424,8 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 	if (code != BRCMF_E_IF && !fweh->evt_handler[code])
 		return;
 
-	if (datalen > BRCMF_DCMD_MAXLEN)
+	if (datalen > BRCMF_DCMD_MAXLEN ||
+	    datalen + sizeof(*event_packet) > packet_len)
 		return;
 
 	if (in_interrupt())

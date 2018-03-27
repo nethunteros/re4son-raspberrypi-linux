@@ -44,8 +44,6 @@
 #include "firmware.h"
 #include "core.h"
 #include "common.h"
-/* NEXMON */
-#include "nexmon_procfs.h"
 
 #define DCMD_RESP_TIMEOUT	msecs_to_jiffies(2500)
 #define CTL_DONE_TIMEOUT	msecs_to_jiffies(2500)
@@ -2849,13 +2847,6 @@ break2:
 }
 #endif				/* DEBUG */
 
-/* NEXMON */
-#define MY_ROM_BUFFER_MAX 0x1fffff
-int my_rom_buffer_len = 0;
-u8 my_rom_buffer[0x1fffff];
-struct brcmf_sdio *my_sdio = NULL;
-struct brcmf_bus *my_bus = NULL;
-
 static int
 brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 {
@@ -3257,8 +3248,6 @@ static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus,
 	int err;
 
 	brcmf_dbg(TRACE, "Enter\n");
-        /*NEXMON*/
-	my_sdio = bus;
 
 	err = brcmf_sdiod_ramrw(bus->sdiodev, true, bus->ci->rambase,
 				(u8 *)fw->data, fw->size);
@@ -3414,9 +3403,6 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 	uint pad_size;
 	u32 value;
 	int err;
-
-	/* NEXMON */
-	my_bus = bus_if;
 
 	/* the commands below use the terms tx and rx from
 	 * a device perspective, ie. bus:txglom affects the
@@ -3979,6 +3965,24 @@ brcmf_sdio_watchdog(unsigned long data)
 	}
 }
 
+static int brcmf_sdio_get_fwname(struct device *dev, u32 chip, u32 chiprev,
+				 u8 *fw_name)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	int ret = 0;
+
+	if (sdiodev->fw_name[0] != '\0')
+		strlcpy(fw_name, sdiodev->fw_name, BRCMF_FW_NAME_LEN);
+	else
+		ret = brcmf_fw_map_chip_to_name(chip, chiprev,
+						brcmf_sdio_fwnames,
+						ARRAY_SIZE(brcmf_sdio_fwnames),
+						fw_name, NULL);
+
+	return ret;
+}
+
 static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.stop = brcmf_sdio_bus_stop,
 	.preinit = brcmf_sdio_bus_preinit,
@@ -3989,22 +3993,28 @@ static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.wowl_config = brcmf_sdio_wowl_config,
 	.get_ramsize = brcmf_sdio_bus_get_ramsize,
 	.get_memdump = brcmf_sdio_bus_get_memdump,
+	.get_fwname = brcmf_sdio_get_fwname,
 };
 
-static void brcmf_sdio_firmware_callback(struct device *dev,
+static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					 const struct firmware *code,
 					 void *nvram, u32 nvram_len)
 {
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
-	struct brcmf_sdio *bus = sdiodev->bus;
-	int err = 0;
+	struct brcmf_bus *bus_if;
+	struct brcmf_sdio_dev *sdiodev;
+	struct brcmf_sdio *bus;
 	u8 saveclk;
 
-	brcmf_dbg(TRACE, "Enter: dev=%s\n", dev_name(dev));
+	brcmf_dbg(TRACE, "Enter: dev=%s, err=%d\n", dev_name(dev), err);
+	bus_if = dev_get_drvdata(dev);
+	sdiodev = bus_if->bus_priv.sdio;
+	if (err)
+		goto fail;
 
 	if (!bus_if->drvr)
 		return;
+
+	bus = sdiodev->bus;
 
 	/* try to download image and nvram to the dongle */
 	bus->alp_only = true;
@@ -4091,6 +4101,7 @@ release:
 	sdio_release_host(sdiodev->func[1]);
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s, err=%d\n", dev_name(dev), err);
+	device_release_driver(&sdiodev->func[2]->dev);
 	device_release_driver(dev);
 }
 
@@ -4170,11 +4181,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 		brcmf_err("brcmf_attach failed\n");
 		goto fail;
 	}
-
-	/* allocate scatter-gather table. sg support
-	 * will be disabled upon allocation failure.
-	 */
-	brcmf_sdiod_sgtable_alloc(bus->sdiodev);
 
 	/* Query the F2 block size, set roundup accordingly */
 	bus->blocksize = bus->sdiodev->func[2]->cur_blksize;
@@ -4317,64 +4323,5 @@ int brcmf_sdio_sleep(struct brcmf_sdio *bus, bool sleep)
 	sdio_release_host(bus->sdiodev->func[1]);
 
 	return ret;
-}
-
-/* NEXMON */
-int
-write_ram_to_buffer(void) {
-    //Console start and end, size: 0x400
-    u32 start_addr = 0x6dab4;
-    u32 end_addr =   0x6deb4;
-
-    u32 address = start_addr;
-    u32 chunk_sz = 0x100;
-    u8 data[0x100];
-
-    brcmf_err("NEXMON, enter\n");
-
-	my_sdio->alp_only = true;
-    //Reset buffer
-    my_rom_buffer[0] = 0;
-    my_rom_buffer_len = 0;
-	
-	sdio_claim_host(my_sdio->sdiodev->func[1]);
-	brcmf_sdio_bus_sleep(my_sdio, false, false);
-    brcmf_sdio_clkctl(my_sdio, CLK_AVAIL, false);
-   
-    while(address >= start_addr && address < end_addr) {
-        brcmf_err("NEXMON rom loop, current address: 0x%x, my_rom_buffer_len: %d\n", address, my_rom_buffer_len);
-
-        brcmf_sdiod_ramrw(my_sdio->sdiodev, false, address, data, chunk_sz);
-
-        memcpy(&(my_rom_buffer[my_rom_buffer_len]), data, (size_t) chunk_sz);
-                
-        my_rom_buffer_len += chunk_sz;
-        address += chunk_sz;
-
-    }
-    
-    print_hex_dump_bytes("", DUMP_PREFIX_NONE, my_rom_buffer, 0x100);
-	
-    my_sdio->alp_only = false;
-    sdio_release_host(my_sdio->sdiodev->func[1]);
-    
-    return 0;
-
-}
-
-int
-procfs_dump_open(struct inode *inode, struct file *file) {
-    brcmf_err("NEXMON, enter\n");
-    if(my_bus != NULL) {
-        write_ram_to_buffer();
-    } else {
-        brcmf_err("NEXMON error, no my_sdio_bus = NULL!\n");
-    }
-    return 0;
-}
-
-ssize_t
-procfs_dump_read(struct file *filp, char *buffer, size_t length, loff_t *offset) {
-    return simple_read_from_buffer(buffer, length, offset, my_rom_buffer, my_rom_buffer_len);
 }
 
