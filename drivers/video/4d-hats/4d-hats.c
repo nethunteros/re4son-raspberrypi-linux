@@ -47,7 +47,7 @@
 #include <linux/delay.h>
 #include <linux/semaphore.h>
 
-
+#include <mach/platform.h>
 
 /* ILI9341 commands */
 #define ILI9341_READ_DISPLAY_PIXEL_FORMAT 0x0C
