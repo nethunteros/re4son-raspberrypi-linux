@@ -9,6 +9,7 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	akkordion-iqdacplus.dtbo \
 	allo-boss-dac-pcm512x-audio.dtbo \
 	allo-digione.dtbo \
+	allo-katana-dac-audio.dtbo \
 	allo-piano-dac-pcm512x-audio.dtbo \
 	allo-piano-dac-plus-pcm512x-audio.dtbo \
 	applepi-dac.dtbo \
@@ -16,6 +17,7 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	audioinjector-addons.dtbo \
 	audioinjector-wm8731-audio.dtbo \
 	audremap.dtbo \
+	balena-fin.dtbo \
 	bmp085_i2c-sensor.dtbo \
 	dht11.dtbo \
 	dionaudio-loco.dtbo \
@@ -55,9 +57,11 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	iqaudio-dac.dtbo \
 	iqaudio-dacplus.dtbo \
 	iqaudio-digi-wm8804-audio.dtbo \
+	jedec-spi-nor.dtbo \
 	justboom-dac.dtbo \
 	justboom-digi.dtbo \
 	lirc-rpi.dtbo \
+	ltc294x.dtbo \
 	mbed-dac.dtbo \
 	mcp23017.dtbo \
 	mcp23s17.dtbo \

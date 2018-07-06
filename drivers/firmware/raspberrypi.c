@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/workqueue.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
@@ -23,6 +24,38 @@
 #define MBOX_CHAN_PROPERTY		8
 
 #define UNDERVOLTAGE_BIT		BIT(0)
+
+
+/*
+ * This section defines some rate limited logging that prevent
+ * repeated messages at much lower Hz than the default kernel settings.
+ * It's usually 5s, this is 5 minutes.
+ * Burst 3 means you may get three messages 'quickly', before
+ * the ratelimiting kicks in.
+ */
+#define LOCAL_RATELIMIT_INTERVAL (5 * 60 * HZ)
+#define LOCAL_RATELIMIT_BURST 3
+
+#ifdef CONFIG_PRINTK
+#define printk_ratelimited_local(fmt, ...)	\
+({						\
+	static DEFINE_RATELIMIT_STATE(_rs,	\
+		LOCAL_RATELIMIT_INTERVAL,	\
+		LOCAL_RATELIMIT_BURST);		\
+						\
+	if (__ratelimit(&_rs))			\
+		printk(fmt, ##__VA_ARGS__);	\
+})
+#else
+#define printk_ratelimited_local(fmt, ...)	\
+	no_printk(fmt, ##__VA_ARGS__)
+#endif
+
+#define pr_crit_ratelimited_local(fmt, ...)              \
+	printk_ratelimited_local(KERN_CRIT pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info_ratelimited_local(fmt, ...)              \
+	printk_ratelimited_local(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+
 
 struct rpi_firmware {
 	struct mbox_client cl;
@@ -119,7 +152,7 @@ int rpi_firmware_property_list(struct rpi_firmware *fw,
 		 * error, if there were multiple tags in the request.
 		 * But single-tag is the most common, so go with it.
 		 */
-		dev_err(fw->cl.dev, "Request 0x%08x returned status 0x%08x\n",
+		dev_dbg(fw->cl.dev, "Request 0x%08x returned status 0x%08x\n",
 			buf[2], buf[1]);
 		ret = -EINVAL;
 	}
@@ -172,6 +205,7 @@ EXPORT_SYMBOL_GPL(rpi_firmware_property);
 
 static int rpi_firmware_get_throttled(struct rpi_firmware *fw, u32 *value)
 {
+	static int old_firmware;
 	static ktime_t old_timestamp;
 	static u32 old_value;
 	u32 new_sticky, old_sticky, new_uv, old_uv;
@@ -181,6 +215,9 @@ static int rpi_firmware_get_throttled(struct rpi_firmware *fw, u32 *value)
 
 	if (!fw)
 		return -EBUSY;
+
+	if (old_firmware)
+		return -EINVAL;
 
 	/*
 	 * We can't run faster than the sticky shift (100ms) since we get
@@ -200,8 +237,17 @@ static int rpi_firmware_get_throttled(struct rpi_firmware *fw, u32 *value)
 
 	ret = rpi_firmware_property(fw, RPI_FIRMWARE_GET_THROTTLED,
 				    value, sizeof(*value));
-	if (ret)
+
+	if (ret) {
+		/* If the mailbox call fails once, then it will continue to
+		 * fail in the future, so no point in continuing to call it
+		 * Usual failure reason is older firmware
+		 */
+		old_firmware = 1;
+		dev_err(fw->cl.dev, "Get Throttled mailbox call failed");
+
 		return ret;
+	}
 
 	new_sticky = *value >> 16;
 	old_sticky = old_value >> 16;
@@ -216,12 +262,36 @@ static int rpi_firmware_get_throttled(struct rpi_firmware *fw, u32 *value)
 
 	if (new_uv != old_uv) {
 		if (new_uv)
-			pr_crit("Under-voltage detected! (0x%08x)\n", *value);
+			pr_crit_ratelimited_local(
+				"Under-voltage detected! (0x%08x)\n",
+				 *value);
 		else
-			pr_info("Voltage normalised (0x%08x)\n", *value);
+			pr_info_ratelimited_local(
+				"Voltage normalised (0x%08x)\n",
+				 *value);
 	}
 
 	sysfs_notify(&fw->cl.dev->kobj, NULL, "get_throttled");
+
+	return 0;
+}
+
+static int rpi_firmware_notify_reboot(struct notifier_block *nb,
+				      unsigned long action,
+				      void *data)
+{
+	struct rpi_firmware *fw;
+	struct platform_device *pdev = g_pdev;
+
+	if (!pdev)
+		return 0;
+
+	fw = platform_get_drvdata(pdev);
+	if (!fw)
+		return 0;
+
+	(void)rpi_firmware_property(fw, RPI_FIRMWARE_NOTIFY_REBOOT,
+				    0, 0);
 
 	return 0;
 }
@@ -234,10 +304,10 @@ static void get_throttled_poll(struct work_struct *work)
 	int ret;
 
 	ret = rpi_firmware_get_throttled(fw, &dummy);
-	if (ret)
-		pr_debug("%s: Failed to read value (%d)", __func__, ret);
 
-	schedule_delayed_work(&fw->get_throttled_poll_work, 2 * HZ);
+	/* Only reschedule if we are getting valid responses */
+	if (!ret)
+		schedule_delayed_work(&fw->get_throttled_poll_work, 2 * HZ);
 }
 
 static ssize_t get_throttled_show(struct device *dev,
@@ -367,15 +437,32 @@ static struct platform_driver rpi_firmware_driver = {
 	.remove		= rpi_firmware_remove,
 };
 
+static struct notifier_block rpi_firmware_reboot_notifier = {
+	.notifier_call = rpi_firmware_notify_reboot,
+};
+
 static int __init rpi_firmware_init(void)
 {
-	return platform_driver_register(&rpi_firmware_driver);
+	int ret = register_reboot_notifier(&rpi_firmware_reboot_notifier);
+	if (ret)
+		goto out1;
+	ret = platform_driver_register(&rpi_firmware_driver);
+	if (ret)
+		goto out2;
+
+	return 0;
+
+out2:
+	unregister_reboot_notifier(&rpi_firmware_reboot_notifier);
+out1:
+	return ret;
 }
 subsys_initcall(rpi_firmware_init);
 
 static void __init rpi_firmware_exit(void)
 {
 	platform_driver_unregister(&rpi_firmware_driver);
+	unregister_reboot_notifier(&rpi_firmware_reboot_notifier);
 }
 module_exit(rpi_firmware_exit);
 
