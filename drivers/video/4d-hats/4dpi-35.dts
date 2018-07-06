@@ -33,11 +33,13 @@
 			#size-cells = <0>;
 
 			rpidisplay: rpi-display@0{
-                                compatible = "4dsystems,35-hat";
+                                compatible = "4dsystems,35b-hat";
 				reg = <0>;
 
 
                                 spi-max-frequency = <48000000>;
+			address-mode-codes = /bits/ 8 <0x28 0x48 0xE8 0x88>;
+
                                 /*
                                 rotate = <0>;
                                 rotate-codes = /bits/ 8 <0x03 0x05 0x00 0x06>;

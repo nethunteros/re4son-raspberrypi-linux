@@ -32,8 +32,15 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 
-#include <mach/platform.h>
-
+//#include <mach/platform.h>
+#ifdef CONFIG_ARCH_MULTI_V7
+#define BCM2708_PERI_BASE 0x3F000000
+#else
+#define BCM2708_PERI_BASE 0x20000000
+#endif
+#define GPIO_BASE                (BCM2708_PERI_BASE + 0x200000) /* GPIO controller */
+#define DMA_BASE                 (BCM2708_PERI_BASE + 0x7000) 	/* DMA controller */
+  
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0))
 #include <mach/dma.h>
 #else

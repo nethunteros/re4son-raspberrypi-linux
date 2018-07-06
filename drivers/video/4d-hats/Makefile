@@ -9,7 +9,7 @@ endif
 
 obj-$(CONFIG_FB_HATS)             += 4dpi.o
 
-ifeq ($(CONFIG_LOCALVERSION),"-v7")
+ifeq ($(CONFIG_LOCALVERSION),"-Re4son-v7")
         4dpi-objs                       := 4d-hats.o compress-v7.o
 else
         4dpi-objs                       := 4d-hats.o compress-v6.o
@@ -17,4 +17,5 @@ endif
 
 obj-$(CONFIG_4DPI_ADS7846)        += 4dpi_touch.o
 obj-$(CONFIG_4DPI_AR1020I2C)      += ar1020-i2c.o
+obj-$(CONFIG_4DPI_FT5X06)         += edt-ft5x06.o
 obj-$(CONFIG_4DPI_PWMBL)          += pwmbl.o

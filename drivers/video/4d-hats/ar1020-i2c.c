@@ -2,7 +2,7 @@
  * Microchip I2C Touchscreen Driver
  *
  * Copyright (c) 2011 Microchip Technology, Inc.
- * 
+ *
  * http://www.microchip.com/mtouch
  */
 
@@ -12,7 +12,7 @@
  * the Free Software Foundation.
  */
 
-#include <linux/input.h>	
+#include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -31,15 +31,15 @@
 // we want GPIO_30 (pin 11 on P5 pinout raspberry pi rev. 2 board)
 // to generate interrupt
 #define GPIO_ANY_GPIO               17
- 
+
 // text below will be seen in 'cat /proc/interrupt' command
 #define GPIO_ANY_GPIO_DESC           "AR1021 Touch Panel Interrupt"
- 
+
 // below is optional, used in more complex code, in our case, this could be
 // NULL
 #define GPIO_ANY_GPIO_DEVICE_DESC    "AR1021 Touch Panel"
- 
- 
+
+
 /****************************************************************************/
 /* Interrupts variables block                                               */
 /****************************************************************************/
@@ -96,7 +96,7 @@ static int lastPUCoordY=0;
 static int lastButton=0;
 
 /* These variables allows the IRQ to be specified via a module parameter
-   or kernel parameter.  To configuration of these value, please see 
+   or kernel parameter.  To configuration of these value, please see
    driver documentation. */
 static int touchIRQ=-1;
 static int probeForIRQ=0;
@@ -123,7 +123,7 @@ Function:
 
 Description:
 	Display value of "commandDataPending" variable to application that is
-	requesting it's value.	
+	requesting it's value.
 ******************************************************************************/
 static ssize_t commandDataPending_show(struct kobject *kobj, struct kobj_attribute *attr,
 			char *buf)
@@ -137,7 +137,7 @@ Function:
 
 Description:
 	Save value to "commandDataPending" variable from application that is
-	requesting this.	
+	requesting this.
 ******************************************************************************/
 static ssize_t commandDataPending_store(struct kobject *kobj, struct kobj_attribute *attr,
 			 const char *buf, size_t count)
@@ -156,7 +156,7 @@ Function:
 
 Description:
 	Display value of "commandMode" variable to application that is
-	requesting it's value.	
+	requesting it's value.
 ******************************************************************************/
 static ssize_t commandMode_show(struct kobject *kobj, struct kobj_attribute *attr,
 			char *buf)
@@ -170,7 +170,7 @@ Function:
 
 Description:
 	Save value to "commandMode" variable from application that is
-	requesting this.	
+	requesting this.
 ******************************************************************************/
 static ssize_t commandMode_store(struct kobject *kobj, struct kobj_attribute *attr,
 			 const char *buf, size_t count)
@@ -189,7 +189,7 @@ Function:
 
 Description:
 	Display value of "receiveBuffer" variable to application that is
-	requesting it's value.	
+	requesting it's value.
 ******************************************************************************/
 static ssize_t receiveBuffer_show(struct kobject *kobj, struct kobj_attribute *attr,
 			char *buf)
@@ -205,7 +205,7 @@ Function:
 
 Description:
 	Save value to "receiveBuffer" variable from application that is
-	requesting this.	
+	requesting this.
 ******************************************************************************/
 static ssize_t receiveBuffer_store(struct kobject *kobj, struct kobj_attribute *attr,
 			 const char *buf, size_t count)
@@ -222,7 +222,7 @@ Function:
 
 Description:
 	Display value of "sendBuffer" variable to application that is
-	requesting it's value.	
+	requesting it's value.
 ******************************************************************************/
 static ssize_t sendBuffer_show(struct kobject *kobj, struct kobj_attribute *attr,
 			char *buf)
@@ -236,7 +236,7 @@ Function:
 
 Description:
 	Save value to "sendBuffer" variable from application that is
-	requesting this.	
+	requesting this.
 ******************************************************************************/
 static ssize_t sendBuffer_store(struct kobject *kobj, struct kobj_attribute *attr,
 			 const char *buf, size_t count)
@@ -258,11 +258,11 @@ static ssize_t sendBuffer_store(struct kobject *kobj, struct kobj_attribute *att
 
 	numCommandBytes=sscanf(buf,"%x %x %x %x %x %x %x %x",&commandByte[0],&commandByte[1],&commandByte[2],&commandByte[3],&commandByte[4],&commandByte[5],&commandByte[6],&commandByte[7]);
 
-  
+
 	// printk(KERN_DEBUG "AR1020 I2C: Processed %d bytes.\n",numCommandBytes);
 
 	/* Verify command string to send to controller is valid */
-	if (numCommandBytes<3) 
+	if (numCommandBytes<3)
 	{
 		// printk("AR1020 I2C: Insufficient command bytes to process.\n");
 	}
@@ -273,7 +273,7 @@ static ssize_t sendBuffer_store(struct kobject *kobj, struct kobj_attribute *att
 	else if (commandByte[1]!=0x55)
 	{
 		// printk("AR1020 I2C: Invalid header byte (0x55 expected).\n");
-	}	
+	}
 	else if (commandByte[2] != (numCommandBytes-3))
 	{
 		// printk("AR1020 I2C: Number of command bytes specified not valid for current string.\n");
@@ -338,8 +338,8 @@ Function:
 	calibrationSettings_store()
 
 Description:
-	Save calibration setting to corresponding variable from application 
-	that is requesting this.	
+	Save calibration setting to corresponding variable from application
+	that is requesting this.
 ******************************************************************************/
 static ssize_t calibrationSettings_store(struct kobject *kobj, struct kobj_attribute *attr,
 		       const char *buf, size_t count)
@@ -408,7 +408,7 @@ static struct attribute *attrs[] = {
 	&invertY_attribute.attr,
 	&lastPUCoordX_attribute.attr,
 	&lastPUCoordY_attribute.attr,
-	NULL,	
+	NULL,
 };
 
 static struct attribute_group attr_group = {
@@ -424,7 +424,7 @@ Function:
 	decodeAR1020Packet()
 
 Description:
-	Decode packets of data from a device path using AR1XXX protocol. 
+	Decode packets of data from a device path using AR1XXX protocol.
 	Returns 1 if a full packet is available, zero otherwise.
 ******************************************************************************/
 int decodeAR1020Packet(struct ar1020_i2c_priv* priv, char* packet, int *index, char data)
@@ -439,19 +439,19 @@ int decodeAR1020Packet(struct ar1020_i2c_priv* priv, char* packet, int *index, c
 	packet[*index] = data;
 
 	/****************************************************
-	
+
 	Data format, 5 bytes: SYNC, DATA1, DATA2, DATA3, DATA4
-	
+
 	SYNC [7:0]: 1,0,0,0,0,TOUCHSTATUS[0:0]
 	DATA1[7:0]: 0,X-LOW[6:0]
 	DATA2[7:0]: 0,X-HIGH[4:0]
 	DATA3[7:0]: 0,Y-LOW[6:0]
 	DATA4[7:0]: 0,Y-HIGH[4:0]
-	
+
 	TOUCHSTATUS: 0 = Touch up, 1 = Touch down
-	
-	****************************************************/		
-	
+
+	****************************************************/
+
 	switch ((*index)) {
 		case 0:
 			if (!(0x80 & data))
@@ -467,19 +467,19 @@ int decodeAR1020Packet(struct ar1020_i2c_priv* priv, char* packet, int *index, c
 			{
 				/* byte not valid */
 				break;
-			}			  
+			}
 
 			x = ((packet[2] & 0x1f) << 7) | (packet[1] & 0x7f);
 			y= ((packet[4] & 0x1f) << 7) | (packet[3] & 0x7f);
 			button = 0 != (packet[0] & 1);
 
-			
+
 			if (0==button)
 			{
 				lastPUCoordX=x;
 				lastPUCoordY=y;
 			}
-			
+
 			if (swapAxes)
 			{
 				int temp=x;
@@ -509,7 +509,7 @@ int decodeAR1020Packet(struct ar1020_i2c_priv* priv, char* packet, int *index, c
 				calY=4095;
 			else
 				/* percentage across calibration area times the maximum controller height */
-				calY=((y-minY)*4095)/(maxY-minY);		
+				calY=((y-minY)*4095)/(maxY-minY);
 
 			// printk(KERN_DEBUG "AR1020 I2C: %d %d %d\n",calX,calY,button);
 
@@ -536,9 +536,9 @@ int decodeAR1020Packet(struct ar1020_i2c_priv* priv, char* packet, int *index, c
 			{
 				/* byte not valid */
 				// printk("AR1020 I2C: Touch byte not valid.  Value: 0x%02x Index: 0x%02x\n",data, *index);
-			}			  
+			}
 			break;
-			
+
 	}
 
 	return returnValue;
@@ -549,8 +549,8 @@ Function:
 	ar1020_i2c_open()
 
 Description:
-	This function is called on every attempt to open the current device  
-	and used for both debugging purposes fullfilling an I2C driver 
+	This function is called on every attempt to open the current device
+	and used for both debugging purposes fullfilling an I2C driver
 	function callback requirement.
 ******************************************************************************/
 static int ar1020_i2c_open(struct input_dev *dev)
@@ -563,8 +563,8 @@ Function:
 	ar1020_i2c_close()
 
 Description:
-	This function is called on every attempt to close the current device  
-	and used for both debugging purposes fullfilling an I2C driver 
+	This function is called on every attempt to close the current device
+	and used for both debugging purposes fullfilling an I2C driver
 	function callback requirement.
 ******************************************************************************/
 static void ar1020_i2c_close(struct input_dev *dev)
@@ -576,7 +576,7 @@ Function:
 	test_irq_handler_func()
 
 Description:
-	Testing to see if IRQ line of controller attached to an available 
+	Testing to see if IRQ line of controller attached to an available
 	IO line on board.
 ******************************************************************************/
 static irqreturn_t test_irq_handler_func(int irq, void *dev_id)
@@ -601,7 +601,7 @@ Function:
 
 Description:
 	When the controller interrupt is asserted, this function is scheduled
-	to be called to read the controller data within the 
+	to be called to read the controller data within the
 	touch_irq_handler_func() function.
 ******************************************************************************/
 static void ar1020_i2c_readdata(struct work_struct *work)
@@ -631,9 +631,9 @@ static void ar1020_i2c_readdata(struct work_struct *work)
 		{
 			// printk("AR1020 I2C: invalid byte count\n");
 		}
-		
+
 		for (i=0;i<7;i++)
-		{		
+		{
 			snprintf(receiveBuffer,sizeof(receiveBuffer),"%s 0x%02x",receiveBuffer,0xff&buff[i+2]);
 		}
 
@@ -642,7 +642,7 @@ static void ar1020_i2c_readdata(struct work_struct *work)
 			/* if command response has valid length, reformat the response */
 			strcpy(receiveBuffer,"");
 			for (i=0;i<buff[1]+2;i++)
-			{		
+			{
 				snprintf(receiveBuffer,sizeof(receiveBuffer),"%s 0x%02x",receiveBuffer,0xff&buff[i]);
 			}
 
@@ -676,7 +676,7 @@ Function:
 	ar1020_i2c_probe()
 
 Description:
-	After the kernel's platform specific source files have been modified to 
+	After the kernel's platform specific source files have been modified to
 	reference the "ar1020_i2c" driver, this function will then be called.
 	This function needs to be called to finish registering the driver.
 ******************************************************************************/
@@ -702,7 +702,7 @@ static int  ar1020_i2c_probe(struct i2c_client *client,
 	if (!client) {
         printk(KERN_ERR "AR1020 I2C: client pointer is NULL\n");
 		err = -EINVAL;
-		goto error; 
+		goto error;
 	}
 
     if (gpio_request(GPIO_ANY_GPIO, GPIO_ANY_GPIO_DESC)) {
@@ -747,7 +747,7 @@ static int  ar1020_i2c_probe(struct i2c_client *client,
 	if (!input_dev)
 	{
 		// printk(KERN_ERR "AR1020 I2C: input allocate error\n");
-		err = -ENOMEM;		
+		err = -ENOMEM;
 		goto error;
 	}
 
@@ -763,18 +763,18 @@ static int  ar1020_i2c_probe(struct i2c_client *client,
 		while (1)
 		{
 			i2c_master_recv (priv->client,buff,5);
-	
+
 			/* A zero byte for first byte usually means there */
 			/* is no data available in controller buffer. */
 			if (0==buff[0])
 			{
-				continue;				
+				continue;
 			}
 
 			for (i=0;i<5;i++)
 			{
 		  	 	// printk("0x%x ",buff[i]);
-				
+
 			}
 			// printk("\n");
 
@@ -782,16 +782,16 @@ static int  ar1020_i2c_probe(struct i2c_client *client,
 			{
 				// printk("AR1020 I2C: Missing sync bit.\n");
 			}
-		}		
+		}
 
 	}
 
 	/* Detect IRQ id that controller IRQ line is attached to.  This detection only works
 	   if the controller's IRQ line is attached to a GPIO line configured as an input.
-	   These lines are often marked as EINT (external interrupt) on the board schematic. 
-	   This probe assumes that I2C read communication with the controller is working 
+	   These lines are often marked as EINT (external interrupt) on the board schematic.
+	   This probe assumes that I2C read communication with the controller is working
 	   correctly.
-	*/ 
+	*/
 	if (probeForIRQ)
 	{
 		// printk("AR1020 I2C: Probing for interrupt id.\n");
@@ -874,7 +874,7 @@ static int  ar1020_i2c_probe(struct i2c_client *client,
 	}
 
 	/* set type and register gpio pin as our interrupt */
-	irq_set_irq_type(priv->irq, IRQ_TYPE_EDGE_RISING);	
+	irq_set_irq_type(priv->irq, IRQ_TYPE_EDGE_RISING);
 	err = request_irq(priv->irq, touch_irq_handler_func, 0, "AR1020 I2C IRQ", priv);
 
 	i2c_set_clientdata(client, priv);
@@ -898,7 +898,7 @@ Function:
 	ar1020_i2c_remove()
 
 Description:
-	Unregister/remove the kernel driver from memory. 
+	Unregister/remove the kernel driver from memory.
 ******************************************************************************/
 static int ar1020_i2c_remove(struct i2c_client *client)
 {
@@ -926,7 +926,7 @@ Description:
 	After the interrupt is asserted for the controller, this
 	is the first function that is called.  Since this is a time sensitive
 	function, we need to immediately schedule work so the integrity of
-	properly system operation 
+	properly system operation
 
 	This function needs to be called to finish registering the driver.
 ******************************************************************************/
@@ -938,7 +938,7 @@ static irqreturn_t touch_irq_handler_func(int irq, void *dev_id)
 	int err;
 	for (i=0;i<5;i++)
 	{
-		buff[i]=0;	  
+		buff[i]=0;
 	}
 
 	// printk(KERN_NOTICE "AR1020 I2C: Interrupt Service rutine\n");
@@ -985,12 +985,12 @@ static struct i2c_driver ar1020_i2c_driver = {
 /* This function configures interrupts.                                     */
 /****************************************************************************/
 void r_int_config(void) {
- 
+
    if (gpio_request(GPIO_ANY_GPIO, GPIO_ANY_GPIO_DESC)) {
       // printk("GPIO request faiure: %s\n", GPIO_ANY_GPIO_DESC);
       return;
    }
- 
+
    gpio_direction_input(GPIO_ANY_GPIO);
 
 //   if ( (irq_any_gpio = gpio_to_irq(GPIO_ANY_GPIO)) < 0 ) {
@@ -998,7 +998,7 @@ void r_int_config(void) {
       // printk("GPIO to IRQ mapping faiure %s\n", GPIO_ANY_GPIO_DESC);
       return;
    }
- 
+
    //// printk(KERN_NOTICE "Mapped int %d\n", irq_any_gpio);
    // printk(KERN_NOTICE "Mapped int %d\n", touchIRQ);
 #if 0
@@ -1010,7 +1010,7 @@ void r_int_config(void) {
       // printk("Irq Request failure\n");
       return;
    }
-#endif 
+#endif
    return;
 }
 
@@ -1019,11 +1019,11 @@ void r_int_config(void) {
 /* This function releases interrupts.                                       */
 /****************************************************************************/
 void r_int_release(void) {
- 
+
    //free_irq(irq_any_gpio, GPIO_ANY_GPIO_DEVICE_DESC);
    //free_irq(touchIRQ, GPIO_ANY_GPIO_DEVICE_DESC);
    gpio_free(GPIO_ANY_GPIO);
- 
+
    return;
 }
 
@@ -1073,7 +1073,7 @@ Function:
 	ar1020_i2c_exit()
 
 Description:
-	This function is called after ar1020_i2c_remove() immediately before 
+	This function is called after ar1020_i2c_remove() immediately before
 	being removed from the kernel.
 ******************************************************************************/
 static void __exit ar1020_i2c_exit(void)
