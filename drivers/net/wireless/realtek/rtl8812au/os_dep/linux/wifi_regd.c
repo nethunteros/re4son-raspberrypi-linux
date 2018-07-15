@@ -390,22 +390,25 @@ static int _rtw_reg_notifier_apply(struct wiphy *wiphy,
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_DRIVER:
-		// DBG_8192C("%s: %s\n", __func__, "NL80211_REGDOM_SET_BY_DRIVER");
+		RTW_DBG("%s: %s\n", __func__, "NL80211_REGDOM_SET_BY_DRIVER");
 		_rtw_reg_apply_world_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER,
 					   reg);
 		break;
 	case NL80211_REGDOM_SET_BY_CORE:
-		// DBG_8192C("%s: %s\n", __func__,  "NL80211_REGDOM_SET_BY_CORE to DRV");
+		RTW_DBG("%s: %s\n", __func__,
+			  "NL80211_REGDOM_SET_BY_CORE to DRV");
 		_rtw_reg_apply_world_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER,
 					   reg);
 		break;
 	case NL80211_REGDOM_SET_BY_USER:
-		// DBG_8192C("%s: %s\n", __func__,  "NL80211_REGDOM_SET_BY_USER to DRV");
+		RTW_DBG("%s: %s\n", __func__,
+			  "NL80211_REGDOM_SET_BY_USER to DRV");
 		_rtw_reg_apply_world_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER,
 					   reg);
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		// DBG_8192C("%s: %s\n", __func__, "NL80211_REGDOM_SET_BY_COUNTRY_IE");
+		RTW_DBG("%s: %s\n", __func__,
+			  "NL80211_REGDOM_SET_BY_COUNTRY_IE");
 		_rtw_reg_apply_world_flags(wiphy, request->initiator, reg);
 		break;
 	}
@@ -432,7 +435,7 @@ void _rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
 
-	// DBG_8192C("%s\n", __func__);
+	RTW_DBG("%s\n", __func__);
 
 	_rtw_reg_notifier_apply(wiphy, request, reg);
 }
@@ -473,7 +476,7 @@ static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg, struct wiphy *wiphy
 	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
 	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
 	#endif
-
+	
 	regd = _rtw_regdomain_select(reg);
 	wiphy_apply_custom_regulatory(wiphy, regd);
 
@@ -496,6 +499,7 @@ static struct country_code_to_enum_rd *_rtw_regd_find_country(u16 countrycode)
 
 int rtw_regd_init(_adapter * padapter)
 {
+#ifndef CONFIG_DISABLE_REGD_C
 	struct wiphy *wiphy = padapter->rtw_wdev->wiphy;
 
 #if 0
@@ -515,7 +519,7 @@ int rtw_regd_init(_adapter * padapter)
 
 	_rtw_regd_init_wiphy(NULL, wiphy);
 
+#endif
 	return 0;
 }
 #endif //CONFIG_IOCTL_CFG80211
-
