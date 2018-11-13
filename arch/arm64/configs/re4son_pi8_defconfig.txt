@@ -6,11 +6,14 @@ CONFIG_CC_STACKPROTECTOR=y
 CONFIG_CC_STACKPROTECTOR_REGULAR=y
 CONFIG_NETWORK_SECMARK=y
 CONFIG_TOUCHSCREEN_FT6X06=m
+## Pause building 4D Hat drivers for arm64
+## until compress_v8.o is available
+## then uncomment all ## but leave ### commented out
 ##CONFIG_RPI_POWER_SWITCH=m
 ##CONFIG_4DHATS=y
 ##CONFIG_FB_HATS=m
 ##CONFIG_4DPI_SPI_DMA=m
-# CONFIG_4DPI_ADS7846 is not set
+### CONFIG_4DPI_ADS7846 is not set
 ##CONFIG_4DPI_AR1020I2C=m
 ##CONFIG_4DPI_FT5X06=m
 ##CONFIG_4DPI_PWMBL=m
