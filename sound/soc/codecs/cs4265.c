@@ -158,7 +158,8 @@ static const struct snd_kcontrol_new cs4265_snd_controls[] = {
 	SOC_SINGLE("Validity Bit Control Switch", CS4265_SPDIF_CTL2,
 				3, 1, 0),
 	SOC_ENUM("SPDIF Mono/Stereo", spdif_mono_stereo_enum),
-	SOC_SINGLE("MMTLR Data Switch", CS4265_SPDIF_CTL2, 0, 1, 0),
+	SOC_SINGLE("MMTLR Data Switch", CS4265_SPDIF_CTL2,
+				0, 1, 0),
 	SOC_ENUM("Mono Channel Select", spdif_mono_select_enum),
 	SND_SOC_BYTES("C Data Buffer", CS4265_C_DATA_BUFF, 24),
 };
@@ -221,10 +222,11 @@ static const struct snd_soc_dapm_route cs4265_audio_map[] = {
 	{"LINEOUTR", NULL, "DAC"},
 	{"SPDIFOUT", NULL, "SPDIF"},
 
+	{"Pre-amp MIC", NULL, "MICL"},
+	{"Pre-amp MIC", NULL, "MICR"},
+	{"ADC Mux", "MIC", "Pre-amp MIC"},
 	{"ADC Mux", "LINEIN", "LINEINL"},
 	{"ADC Mux", "LINEIN", "LINEINR"},
-	{"ADC Mux", "MIC", "MICL"},
-	{"ADC Mux", "MIC", "MICR"},
 	{"ADC", NULL, "ADC Mux"},
 	{"DOUT", NULL, "ADC"},
 	{"DAI1 Capture", NULL, "DOUT"},
